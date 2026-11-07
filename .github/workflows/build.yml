@@ -17,6 +17,12 @@ jobs:
         with:
           python-version: "3.10"
 
+      - name: Installer Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - name: Installer les paquets système
         run: |
           sudo apt-get update
@@ -35,11 +41,13 @@ jobs:
       - name: Afficher la vraie erreur
         if: failure()
         run: |
-          sed 's/\x1b\[[0-9;]*m//g' build.log | grep -v '^# ' > clean.log
+          sed 's/\x1b\[[0-9;]*m//g' build.log | grep -v -E '^#     [A-Za-z_0-9]+ = ' > clean.log
           echo "===== LIGNES CONTENANT UNE ERREUR ====="
-          grep -n -i -E "command failed|error:|fatal|traceback|no such file|not found| failed" clean.log | tail -n 25
+          grep -n -E "ERROR|Command failed|Traceback|error:|fatal|No such file|not found|FAILED" clean.log | tail -n 30
+          echo "===== DETAIL DE L'ECHEC GRADLE ====="
+          grep -A 40 "FAILURE: Build failed" clean.log | head -n 60
           echo "===== DERNIERES LIGNES (sans les variables d'environnement) ====="
-          tail -n 60 clean.log
+          tail -n 70 clean.log
 
       - name: Publier le journal complet
         if: failure()
