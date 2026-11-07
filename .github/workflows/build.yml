@@ -35,11 +35,11 @@ jobs:
       - name: Afficher la vraie erreur
         if: failure()
         run: |
-          N=$(grep -n -m1 -E "Environment variables|Buildozer failed" build.log | cut -d: -f1)
-          [ -z "$N" ] && N=$(wc -l < build.log)
-          START=$(( N > 80 ? N - 80 : 1 ))
-          echo "===== LIGNES AVANT L'ERREUR ====="
-          sed -n "${START},${N}p" build.log | sed 's/\x1b\[[0-9;]*m//g'
+          sed 's/\x1b\[[0-9;]*m//g' build.log | grep -v '^# ' > clean.log
+          echo "===== LIGNES CONTENANT UNE ERREUR ====="
+          grep -n -i -E "command failed|error:|fatal|traceback|no such file|not found| failed" clean.log | tail -n 25
+          echo "===== DERNIERES LIGNES (sans les variables d'environnement) ====="
+          tail -n 60 clean.log
 
       - name: Publier le journal complet
         if: failure()
