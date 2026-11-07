@@ -1,42 +1,55 @@
 name: Build APK
 
 on:
-  workflow_dispatch:
+  workflow_dispatch:      # bouton « Run workflow » dans l'onglet Actions
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
   build:
     runs-on: ubuntu-22.04
     steps:
-      - name: Checkout source
+      - name: Récupérer le code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Installer Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - name: Install system dependencies
+      - name: Installer les paquets système
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
-            git zip unzip openjdk-17-jdk autoconf libtool \
-            pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev \
-            libtinfo5 cmake libffi-dev libssl-dev
+          sudo apt-get install -y git zip unzip openjdk-17-jdk autoconf libtool \
+            pkg-config zlib1g-dev libncurses5-dev libncursesw5-dev libtinfo5 \
+            cmake libffi-dev libssl-dev
 
-      - name: Install Buildozer
+      - name: Installer Buildozer
+        run: pip install --upgrade pip buildozer Cython==0.29.37 virtualenv
+
+      - name: Construire l'APK
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install buildozer Cython==0.29.37 virtualenv
+          set -o pipefail
+          buildozer -v android debug 2>&1 | tee build.log
 
-      - name: Build debug APK
-        run: buildozer -v android debug
+      - name: Afficher la vraie erreur
+        if: failure()
+        run: |
+          N=$(grep -n -m1 -E "Environment variables|Buildozer failed" build.log | cut -d: -f1)
+          [ -z "$N" ] && N=$(wc -l < build.log)
+          START=$(( N > 80 ? N - 80 : 1 ))
+          echo "===== LIGNES AVANT L'ERREUR ====="
+          sed -n "${START},${N}p" build.log | sed 's/\x1b\[[0-9;]*m//g'
 
-      - name: Upload APK
+      - name: Publier le journal complet
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+
+      - name: Publier l'APK
         uses: actions/upload-artifact@v4
         with:
           name: clavier-bluetooth-apk
           path: bin/*.apk
-          if-no-files-found: error
